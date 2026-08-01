@@ -22,17 +22,18 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Flutter
+# Flutter SDK
 ENV FLUTTER_HOME=/opt/flutter
 
-RUN git clone --depth 1 \
-    -b stable \
+RUN git clone \
+    --depth 1 \
+    --branch stable \
     https://github.com/flutter/flutter.git \
     ${FLUTTER_HOME}
 
 ENV PATH="${FLUTTER_HOME}/bin:${FLUTTER_HOME}/bin/cache/dart-sdk/bin:${PATH}"
 
-# Enable Flutter Web and preload SDK
+# Enable Flutter and preload artifacts
 RUN flutter --version
 RUN flutter config --enable-web
 RUN flutter precache
@@ -45,12 +46,14 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
 # Install Firebase CLI
 RUN npm install -g firebase-tools
 
-# Verify installations
+# Verify tools
 RUN dart --version
+RUN flutter --version
 RUN node --version
 RUN npm --version
 RUN firebase --version
 
+# Workspace
 WORKDIR /workspaces
 
 CMD ["/bin/bash"]
