@@ -6,20 +6,21 @@ class DRSSApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'DRSS',
+      title: 'Digital Random Selection System',
       debugShowCheckedModeBanner: false,
-
       theme: ThemeData(
-        colorSchemeSeed: Colors.blue,
         useMaterial3: true,
+        colorSchemeSeed: Colors.blue,
       ),
-
-      home: const Scaffold(
-        body: Center(
+      home: Scaffold(
+        appBar: AppBar(
+          title: const Text('DRSS'),
+        ),
+        body: const Center(
           child: Text(
-            'Digital Random Selection System (DRSS)',
+            'Welcome to the Digital Random Selection System',
             style: TextStyle(
-              fontSize: 28,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
             ),
             textAlign: TextAlign.center,
