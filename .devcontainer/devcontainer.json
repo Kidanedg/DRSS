@@ -1,4 +1,18 @@
 {
-  "name": "DRSS Development",
-  "image": "mcr.microsoft.com/devcontainers/base:ubuntu"
+  "name": "DRSS Flutter Development",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "Dart-Code.flutter",
+        "Dart-Code.dart-code",
+        "GitHub.copilot",
+        "ms-azuretools.vscode-docker",
+        "GitHub.vscode-github-actions"
+      ]
+    }
+  },
+  "remoteUser": "vscode"
 }
