@@ -9,10 +9,9 @@
         "Dart-Code.flutter",
         "Dart-Code.dart-code",
         "GitHub.copilot",
-        "ms-azuretools.vscode-docker",
         "GitHub.vscode-github-actions"
       ]
     }
   },
-  "remoteUser": "vscode"
+  "postCreateCommand": "flutter doctor && firebase --version"
 }
