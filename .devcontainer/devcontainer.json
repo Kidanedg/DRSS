@@ -1,7 +1,8 @@
 {
   "name": "DRSS Flutter Development",
   "build": {
-    "dockerfile": "Dockerfile"
+    "dockerfile": "Dockerfile",
+    "context": ".."
   },
   "customizations": {
     "vscode": {
@@ -10,8 +11,17 @@
         "Dart-Code.dart-code",
         "GitHub.copilot",
         "GitHub.vscode-github-actions"
-      ]
+      ],
+      "settings": {
+        "dart.flutterSdkPath": "/opt/flutter"
+      }
     }
   },
-  "postCreateCommand": "flutter doctor && firebase --version"
+  "forwardPorts": [
+    3000,
+    5000,
+    8080
+  ],
+  "postCreateCommand": "flutter doctor && flutter config --enable-web && firebase --version",
+  "remoteUser": "vscode"
 }
