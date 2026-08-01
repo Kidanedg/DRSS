@@ -1,9 +1,6 @@
 {
-  "name": "DRSS Flutter",
+  "name": "DRSS Development",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
-  "features": {
-    "ghcr.io/devcontainers/features/flutter:1": {}
-  },
   "customizations": {
     "vscode": {
       "extensions": [
