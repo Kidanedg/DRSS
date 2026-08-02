@@ -1,62 +1,105 @@
 import 'package:flutter/material.dart';
 
-import '../../core/constants/app_colors.dart';
+import '../../services/auth_service.dart';
 import '../dashboard/dashboard_screen.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  final AuthService _authService = AuthService();
+
+  bool _loading = false;
+
+  Future<void> _login() async {
+    setState(() => _loading = true);
+
+    try {
+      await _authService.signIn(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const DashboardScreen(),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            "Login failed.\n${e.toString()}",
+          ),
+        ),
+      );
+    }
+
+    if (mounted) {
+      setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text("DRSS Login"),
+      ),
       body: Center(
-        child: SizedBox(
-          width: 400,
-          child: Card(
-            elevation: 6,
-            child: Padding(
-              padding: const EdgeInsets.all(24),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: SizedBox(
+              width: 420,
               child: Column(
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    "DRSS Login",
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  const Icon(
+                    Icons.how_to_reg,
+                    size: 90,
+                    color: Colors.indigo,
                   ),
-
                   const SizedBox(height: 30),
 
-                  const TextField(
-                    decoration: InputDecoration(
+                  TextField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
                       labelText: "Email",
+                      border: OutlineInputBorder(),
                     ),
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
 
-                  const TextField(
+                  TextField(
+                    controller: _passwordController,
                     obscureText: true,
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       labelText: "Password",
+                      border: OutlineInputBorder(),
                     ),
                   ),
 
                   const SizedBox(height: 30),
 
                   ElevatedButton(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const DashboardScreen(),
-                        ),
-                      );
-                    },
-                    child: const Text("Login"),
+                    onPressed: _loading ? null : _login,
+                    child: _loading
+                        ? const CircularProgressIndicator()
+                        : const Text("Login"),
                   ),
                 ],
               ),
