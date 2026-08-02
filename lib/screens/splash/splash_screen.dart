@@ -1,7 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+
+import '../auth/login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -16,27 +17,39 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
 
-    Timer(const Duration(seconds: 3), () {
-      context.go('/login');
-    });
+    Timer(
+      const Duration(seconds: 3),
+      () {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const LoginScreen(),
+          ),
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
 
     return Scaffold(
+
       body: Center(
+
         child: Column(
+
           mainAxisAlignment: MainAxisAlignment.center,
+
           children: const [
 
             Icon(
               Icons.how_to_reg,
-              size: 100,
-              color: Colors.blue,
+              size: 90,
+              color: Colors.indigo,
             ),
 
-            SizedBox(height: 20),
+            SizedBox(height: 25),
 
             Text(
               "DRSS",
@@ -49,7 +62,7 @@ class _SplashScreenState extends State<SplashScreen> {
             SizedBox(height: 10),
 
             Text(
-              "Digital Registration & Selection System",
+              "Digital Registration and Selection System",
             ),
 
             SizedBox(height: 40),
