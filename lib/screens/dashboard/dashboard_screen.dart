@@ -9,10 +9,15 @@ class DashboardScreen extends StatelessWidget {
     String title,
   ) {
     return Card(
-      elevation: 4,
+      elevation: 5,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () {},
+        onTap: () {
+          // TODO: Navigate to corresponding screen
+        },
         child: SizedBox(
           width: 170,
           height: 150,
@@ -21,12 +26,13 @@ class DashboardScreen extends StatelessWidget {
             children: [
               Icon(
                 icon,
-                size: 48,
+                size: 50,
                 color: Colors.indigo,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 15),
               Text(
                 title,
+                textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -44,19 +50,23 @@ class DashboardScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text("DRSS Dashboard"),
+        centerTitle: true,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Wrap(
-          spacing: 20,
-          runSpacing: 20,
-          children: [
-            buildCard(context, Icons.event, "Events"),
-            buildCard(context, Icons.people, "Participants"),
-            buildCard(context, Icons.casino, "Lottery"),
-            buildCard(context, Icons.emoji_events, "Winners"),
-            buildCard(context, Icons.settings, "Settings"),
-          ],
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 20,
+            runSpacing: 20,
+            children: [
+              buildCard(context, Icons.event, "Events"),
+              buildCard(context, Icons.people, "Participants"),
+              buildCard(context, Icons.casino, "Lottery"),
+              buildCard(context, Icons.emoji_events, "Winners"),
+              buildCard(context, Icons.settings, "Settings"),
+            ],
+          ),
         ),
       ),
     );
