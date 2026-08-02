@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import 'core/theme/app_theme.dart';
 import 'screens/splash/splash_screen.dart';
 
 class DRSSApp extends StatelessWidget {
@@ -7,12 +9,12 @@ class DRSSApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'DRSS',
+      title: "DRSS",
+
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: Colors.indigo,
-      ),
+
+      theme: AppTheme.lightTheme,
+
       home: const SplashScreen(),
     );
   }
