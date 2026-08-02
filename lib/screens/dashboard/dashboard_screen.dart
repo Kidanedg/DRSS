@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../events/events_screen.dart';
+import '../participants/participants_screen.dart';
+import '../lottery/lottery_screen.dart';
+import '../winners/winners_screen.dart';
+import '../settings/settings_screen.dart';
+
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
@@ -7,6 +13,7 @@ class DashboardScreen extends StatelessWidget {
     BuildContext context,
     IconData icon,
     String title,
+    Widget screen,
   ) {
     return Card(
       elevation: 5,
@@ -16,7 +23,12 @@ class DashboardScreen extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () {
-          // TODO: Navigate to corresponding screen
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => screen,
+            ),
+          );
         },
         child: SizedBox(
           width: 170,
@@ -60,11 +72,36 @@ class DashboardScreen extends StatelessWidget {
             spacing: 20,
             runSpacing: 20,
             children: [
-              buildCard(context, Icons.event, "Events"),
-              buildCard(context, Icons.people, "Participants"),
-              buildCard(context, Icons.casino, "Lottery"),
-              buildCard(context, Icons.emoji_events, "Winners"),
-              buildCard(context, Icons.settings, "Settings"),
+              buildCard(
+                context,
+                Icons.event,
+                "Events",
+                const EventsScreen(),
+              ),
+              buildCard(
+                context,
+                Icons.people,
+                "Participants",
+                const ParticipantsScreen(),
+              ),
+              buildCard(
+                context,
+                Icons.casino,
+                "Lottery",
+                const LotteryScreen(),
+              ),
+              buildCard(
+                context,
+                Icons.emoji_events,
+                "Winners",
+                const WinnersScreen(),
+              ),
+              buildCard(
+                context,
+                Icons.settings,
+                "Settings",
+                const SettingsScreen(),
+              ),
             ],
           ),
         ),
