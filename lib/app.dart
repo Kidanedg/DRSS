@@ -9,12 +9,9 @@ class DRSSApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: "DRSS",
-
+      title: 'DRSS',
       debugShowCheckedModeBanner: false,
-
       theme: AppTheme.lightTheme,
-
       home: const SplashScreen(),
     );
   }
