@@ -1,3 +1,4 @@
+cat > lib/services/auth_service.dart << 'EOF'
 import 'package:firebase_auth/firebase_auth.dart';
 
 class AuthService {
@@ -7,7 +8,7 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    return await _auth.signInWithEmailAndPassword(
+    return _auth.signInWithEmailAndPassword(
       email: email.trim(),
       password: password,
     );
@@ -19,3 +20,4 @@ class AuthService {
 
   User? get currentUser => _auth.currentUser;
 }
+EOF
