@@ -1,5 +1,5 @@
 """
-DRSS — Digital Registration and Selection System
+DRSS - Digital Registration and Selection System
 Single-file Streamlit application
 Modules 1–12 in one app.py
 
@@ -39,7 +39,7 @@ except Exception:
 # ============================================================
 
 st.set_page_config(
-    page_title="DRSS — Digital Registration & Selection System",
+    page_title="DRSS - Digital Registration & Selection System",
     page_icon="🎟️",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -51,26 +51,97 @@ APP_SHORT = "DRSS"
 
 # ============================================================
 # UI
-# ============================================================
 
 st.markdown(
     """
     <style>
-    .drss-title {font-size:2.25rem;font-weight:800;margin-bottom:.1rem;}
-    .drss-subtitle {opacity:.75;margin-bottom:1rem;}
-    .ticket-box {
-        padding:24px;border:2px solid rgba(49,51,63,.20);
-        border-radius:16px;text-align:center;margin:12px 0;
+    .block-container {
+        max-width: 1200px;
+        padding-top: 1.5rem;
+        padding-bottom: 3rem;
     }
-    .ticket-number {font-size:2rem;font-weight:800;letter-spacing:1px;}
-    .status-box {padding:16px;border-radius:12px;margin:8px 0;}
+
+    .drss-hero {
+        padding: 3.2rem 3rem;
+        border-radius: 24px;
+        background: linear-gradient(135deg, #0B5CAD 0%, #164E86 55%, #243447 100%);
+        color: white;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 14px 35px rgba(11, 92, 173, .20);
+    }
+
+    .drss-hero h1 {
+        font-size: 3rem;
+        line-height: 1.08;
+        margin: 0 0 .7rem 0;
+        font-weight: 800;
+    }
+
+    .drss-hero p {
+        font-size: 1.15rem;
+        line-height: 1.65;
+        margin: 0;
+        max-width: 850px;
+        opacity: .96;
+    }
+
+    .drss-card {
+        background: #F7F9FC;
+        border: 1px solid #E1E7EF;
+        border-radius: 18px;
+        padding: 1.35rem;
+        min-height: 145px;
+        box-shadow: 0 5px 18px rgba(36,52,71,.06);
+    }
+
+    .drss-card h3 {
+        margin-top: 0;
+        color: #243447;
+    }
+
+    .drss-card p {
+        color: #526274;
+        line-height: 1.55;
+    }
+
+    .drss-step {
+        border-left: 4px solid #138A36;
+        background: #F7F9FC;
+        padding: 1rem 1.2rem;
+        margin: .6rem 0;
+        border-radius: 0 12px 12px 0;
+    }
+
+    .ticket-box {
+        padding: 24px;
+        border: 2px solid #0B5CAD;
+        border-radius: 16px;
+        text-align: center;
+        margin: 12px 0;
+        background: #F7F9FC;
+    }
+
+    .ticket-number {
+        font-size: 2rem;
+        font-weight: 800;
+        letter-spacing: 1px;
+        color: #0B5CAD;
+    }
+
+    [data-testid="stSidebar"] {
+        border-right: 1px solid #E1E7EF;
+    }
+
+    .section-note {
+        color: #526274;
+        font-size: .98rem;
+        margin-bottom: 1rem;
+    }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-
-# ============================================================
 # CONFIG / FIREBASE
 # ============================================================
 
@@ -108,9 +179,26 @@ def get_db():
         client_id = secret_value("firebase_admin", "client_id")
 
         if not project_id or not private_key or not client_email:
-            st.error(
-                "Firebase Admin credentials are missing. "
-                "Add [firebase_admin] credentials to Streamlit Secrets."
+            st.error("Firebase Admin credentials are missing.")
+            st.markdown(
+                """
+                **Before running DRSS, add the Firebase service-account
+                credentials to Streamlit Secrets.**
+
+                The private key must never be placed in GitHub or directly
+                inside app.py.
+
+                Required section:
+
+                ```toml
+                [firebase_admin]
+                project_id = "YOUR_PROJECT_ID"
+                private_key_id = "YOUR_PRIVATE_KEY_ID"
+                private_key = "-----BEGIN PRIVATE KEY-----\\nYOUR_KEY\\n-----END PRIVATE KEY-----\\n"
+                client_email = "firebase-adminsdk-xxxxx@YOUR_PROJECT_ID.iam.gserviceaccount.com"
+                client_id = "YOUR_CLIENT_ID"
+                ```
+                """
             )
             st.stop()
 
@@ -276,65 +364,103 @@ def status_badge(value):
 
 
 # ============================================================
-# MODULE 1 — PUBLIC HOME
-# ============================================================
+# MODULE 1 - PUBLIC HOME
 
 def module_1():
-    st.markdown(
-        f'<div class="drss-title">🎟️ {APP_NAME}</div>',
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        '<div class="drss-subtitle">'
-        "Simple registration • transparent status • controlled selection"
-        "</div>",
-        unsafe_allow_html=True,
-    )
-
     events = event_list(open_only=True)
+
+    st.markdown(
+        """
+        <div class="drss-hero">
+            <h1>Digital Registration and Selection System</h1>
+            <p>
+                A simple, transparent and accessible platform for event
+                registration, payment verification, participant status
+                checking and controlled digital selection.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     if not events:
         st.info("There is currently no open registration event.")
-        return
+        st.subheader("How the system works")
+        steps = [
+            ("01", "Register", "Enter your basic information through a simple form."),
+            ("02", "Receive your ticket", "Save the unique ticket number generated after registration."),
+            ("03", "Check your status", "Use your ticket number or registered phone number."),
+            ("04", "Selection", "Eligible participants are selected according to the event rules."),
+            ("05", "Verify results", "Published winners can be checked through the public results page."),
+        ]
+    else:
+        event = events[0]
+        n = participant_count(event["id"])
+        capacity = int(event.get("max_participants", 0) or 0)
+        remaining = max(capacity - n, 0)
 
-    event = events[0]
-    n = participant_count(event["id"])
+        st.subheader(event.get("name", "Current Registration Event"))
+        st.markdown(
+            f'<div class="section-note">{event.get("description", "")}</div>',
+            unsafe_allow_html=True,
+        )
 
-    a, b, c, d = st.columns(4)
-    a.metric("Event", str(event.get("name", ""))[:25])
-    b.metric("Registered", n)
-    c.metric("Capacity", event.get("max_participants", 0))
-    d.metric(
-        "Fee",
-        f"{event.get('registration_fee', 0):,.2f} "
-        f"{event.get('currency', 'ETB')}",
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Registered", f"{n:,}")
+        c2.metric("Available places", f"{remaining:,}")
+        c3.metric("Registration fee",
+                  f"{event.get('registration_fee', 0):,.2f} "
+                  f"{event.get('currency', 'ETB')}")
+        c4.metric("Event date", str(event.get("event_date", "")))
+
+        st.markdown("---")
+        a, b, c = st.columns(3)
+        with a:
+            st.markdown(
+                '<div class="drss-card"><h3>Simple registration</h3>'
+                '<p>Complete one clear form and receive a unique DRSS ticket number.</p></div>',
+                unsafe_allow_html=True,
+            )
+        with b:
+            st.markdown(
+                '<div class="drss-card"><h3>Transparent status</h3>'
+                '<p>Check registration and payment status using your ticket or phone number.</p></div>',
+                unsafe_allow_html=True,
+            )
+        with c:
+            st.markdown(
+                '<div class="drss-card"><h3>Controlled selection</h3>'
+                '<p>Eligible participants can be selected digitally and the result recorded.</p></div>',
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("---")
+        st.subheader("How to participate")
+        steps = [
+            ("01", "Register", "Enter your information."),
+            ("02", "Save your ticket", "Keep the ticket number shown after registration."),
+            ("03", "Complete payment", "Use the instructed payment method when a fee applies."),
+            ("04", "Check status", "Return to DRSS whenever you need to check progress."),
+            ("05", "View results", "Use the Winners page after an official selection."),
+        ]
+
+    for number, title, description in steps:
+        st.markdown(
+            f'<div class="drss-step"><strong>{number} - {title}</strong><br>{description}</div>',
+            unsafe_allow_html=True,
+        )
+
+    st.caption(
+        "DRSS is intended to make registration and selection easier for ordinary users "
+        "while keeping administrative actions traceable."
     )
 
-    st.divider()
-    st.subheader(event.get("name", "DRSS Event"))
-    st.write(event.get("description", ""))
-    st.markdown(f"**Date:** {event.get('event_date', '')}")
-    st.markdown(f"**Location:** {event.get('location', '')}")
 
-    st.subheader("How DRSS works")
-    st.markdown(
-        """
-        1. **Register** — enter your information once.
-        2. **Receive a ticket** — save your unique DRSS ticket.
-        3. **Payment verification** — where applicable, the organizer verifies it.
-        4. **Check status** — use your ticket or phone number.
-        5. **Selection** — eligible participants are selected according to event rules.
-        6. **Results** — published winners can be verified publicly.
-        """
-    )
-
-
-# ============================================================
-# MODULE 2 — REGISTRATION
+# MODULE 2 - REGISTRATION
 # ============================================================
 
 def module_2():
-    st.title("📝 Module 2 — Participant Registration")
+    st.title("Module 2 - Participant Registration")
     events = event_list(open_only=True)
 
     if not events:
@@ -342,7 +468,7 @@ def module_2():
         return
 
     labels = {
-        f"{e.get('name','')} — {e.get('event_date','')}": e["id"]
+        f"{e.get('name','')} - {e.get('event_date','')}": e["id"]
         for e in events
     }
     label = st.selectbox("Select event *", list(labels))
@@ -401,7 +527,7 @@ def module_2():
         )
 
         submit = st.form_submit_button(
-            "🎟️ Submit Registration",
+            "Submit Registration",
             type="primary",
             use_container_width=True,
         )
@@ -497,7 +623,7 @@ def module_2():
     )
 
     st.download_button(
-        "⬇️ Download confirmation",
+        "Download confirmation",
         confirmation,
         file_name=f"{ticket}.txt",
         mime="text/plain",
@@ -506,11 +632,11 @@ def module_2():
 
 
 # ============================================================
-# MODULE 3 — STATUS / RESULTS
+# MODULE 3 - STATUS / RESULTS
 # ============================================================
 
 def module_3():
-    st.title("🔎 Module 3 — Check Status")
+    st.title("Module 3 - Check Status")
 
     method = st.radio(
         "Search using",
@@ -525,7 +651,7 @@ def module_3():
         phone = st.text_input("Registered phone number")
         ticket = ""
 
-    if st.button("🔎 Check", type="primary", use_container_width=True):
+    if st.button("Check", type="primary", use_container_width=True):
         p = (
             participant_by_ticket(ticket)
             if ticket.strip()
@@ -550,7 +676,7 @@ def module_3():
             st.write(f"**Selection:** {p.get('selection_status','')}")
 
         if p.get("selection_status") == "SELECTED":
-            st.success("🎉 Congratulations! Your ticket was selected.")
+            st.success("Congratulations! Your ticket was selected.")
         elif p.get("payment_status") == "PENDING":
             st.warning("Payment verification is still pending.")
         else:
@@ -561,11 +687,11 @@ def module_3():
 
 
 # ============================================================
-# MODULE 4 — ADMIN LOGIN
+# MODULE 4 - ADMIN LOGIN
 # ============================================================
 
 def module_4_login():
-    st.title("🔐 Module 4 — Administrator Login")
+    st.title("Module 4 - Administrator Login")
     st.write(
         "This application expects the administrator to authenticate "
         "through the configured Firebase/Streamlit authentication layer."
@@ -604,7 +730,7 @@ def admin_required():
 
 
 # ============================================================
-# MODULE 5 — EVENT MANAGEMENT
+# MODULE 5 - EVENT MANAGEMENT
 # ============================================================
 
 def module_5():
@@ -613,7 +739,7 @@ def module_5():
         module_4_login()
         return
 
-    st.title("🗓️ Module 5 — Event Management")
+    st.title("🗓️ Module 5 - Event Management")
     db = get_db()
 
     st.subheader("Create new event")
@@ -656,7 +782,7 @@ def module_5():
 
     for event in event_list():
         with st.expander(
-            f"{event.get('name','')} — {event.get('status','')}"
+            f"{event.get('name','')} - {event.get('status','')}"
         ):
             st.write(
                 f"Date: {event.get('event_date','')} | "
@@ -698,7 +824,7 @@ def module_5():
 
 
 # ============================================================
-# MODULE 6 — PARTICIPANT MANAGEMENT
+# MODULE 6 - PARTICIPANT MANAGEMENT
 # ============================================================
 
 def module_6():
@@ -707,7 +833,7 @@ def module_6():
         module_4_login()
         return
 
-    st.title("👥 Module 6 — Participant Management")
+    st.title("Module 6 - Participant Management")
 
     events = event_list()
     if not events:
@@ -715,7 +841,7 @@ def module_6():
         return
 
     labels = {
-        f"{e.get('name','')} — {e.get('event_date','')}": e["id"]
+        f"{e.get('name','')} - {e.get('event_date','')}": e["id"]
         for e in events
     }
     label = st.selectbox("Event", list(labels))
@@ -761,7 +887,7 @@ def module_6():
     )
 
     st.download_button(
-        "⬇️ Export participants CSV",
+        "Export participants CSV",
         df.to_csv(index=False).encode("utf-8"),
         "drss_participants.csv",
         "text/csv",
@@ -770,7 +896,7 @@ def module_6():
 
 
 # ============================================================
-# MODULE 7 — PAYMENT VERIFICATION
+# MODULE 7 - PAYMENT VERIFICATION
 # ============================================================
 
 def module_7():
@@ -779,7 +905,7 @@ def module_7():
         module_4_login()
         return
 
-    st.title("💳 Module 7 — Payment Verification")
+    st.title("Module 7 - Payment Verification")
     db = get_db()
 
     pending = []
@@ -797,7 +923,7 @@ def module_7():
 
     for p in pending:
         with st.expander(
-            f"{p.get('ticket_number')} — {p.get('full_name')}"
+            f"{p.get('ticket_number')} - {p.get('full_name')}"
         ):
             st.write(f"Phone: {p.get('phone')}")
             st.write(f"Reference: {p.get('payment_reference')}")
@@ -807,7 +933,7 @@ def module_7():
             c1, c2 = st.columns(2)
 
             if c1.button(
-                "✅ Approve",
+                "Approve",
                 key=f"approve_{p['id']}",
                 use_container_width=True,
             ):
@@ -826,7 +952,7 @@ def module_7():
                 st.rerun()
 
             if c2.button(
-                "❌ Reject",
+                "Reject",
                 key=f"reject_{p['id']}",
                 use_container_width=True,
             ):
@@ -846,7 +972,7 @@ def module_7():
 
 
 # ============================================================
-# MODULE 8 — DIGITAL SELECTION
+# MODULE 8 - DIGITAL SELECTION
 # ============================================================
 
 def module_8():
@@ -855,7 +981,7 @@ def module_8():
         module_4_login()
         return
 
-    st.title("🎲 Module 8 — Digital Selection")
+    st.title("Module 8 - Digital Selection")
 
     events = event_list()
     if not events:
@@ -863,7 +989,7 @@ def module_8():
         return
 
     labels = {
-        f"{e.get('name','')} — {e.get('event_date','')}": e["id"]
+        f"{e.get('name','')} - {e.get('event_date','')}": e["id"]
         for e in events
     }
     label = st.selectbox("Event", list(labels))
@@ -916,7 +1042,7 @@ def module_8():
     )
 
     if st.button(
-        "🎲 RUN OFFICIAL RANDOM SELECTION",
+        "RUN OFFICIAL RANDOM SELECTION",
         type="primary",
         use_container_width=True,
         disabled=bool(existing),
@@ -974,17 +1100,17 @@ def module_8():
         for rank, pid in enumerate(selected, start=1):
             p = next(x for x in participants if x["id"] == pid)
             st.write(
-                f"**Winner {rank}:** {p.get('full_name')} — "
+                f"**Winner {rank}:** {p.get('full_name')} - "
                 f"`{p.get('ticket_number')}`"
             )
 
 
 # ============================================================
-# MODULE 9 — PUBLIC WINNERS
+# MODULE 9 - PUBLIC WINNERS
 # ============================================================
 
 def module_9():
-    st.title("🏆 Module 9 — Winners")
+    st.title("Module 9 - Winners")
 
     db = get_db()
     events = event_list()
@@ -994,7 +1120,7 @@ def module_9():
         return
 
     labels = {
-        f"{e.get('name','')} — {e.get('event_date','')}": e["id"]
+        f"{e.get('name','')} - {e.get('event_date','')}": e["id"]
         for e in events
     }
     label = st.selectbox("Event", list(labels))
@@ -1031,7 +1157,7 @@ def module_9():
 
 
 # ============================================================
-# MODULE 10 — REPORTS
+# MODULE 10 - REPORTS
 # ============================================================
 
 def module_10():
@@ -1040,7 +1166,7 @@ def module_10():
         module_4_login()
         return
 
-    st.title("📊 Module 10 — Reports")
+    st.title("Module 10 - Reports")
 
     db = get_db()
     docs = list(db.collection("participants").stream())
@@ -1085,7 +1211,7 @@ def module_10():
 
     csv = df.to_csv(index=False).encode("utf-8")
     st.download_button(
-        "⬇️ Download CSV report",
+        "Download CSV report",
         csv,
         "drss_full_report.csv",
         "text/csv",
@@ -1099,7 +1225,7 @@ def module_10():
             df.to_excel(writer, index=False, sheet_name="Participants")
             summary.to_excel(writer, index=False, sheet_name="Event Summary")
         st.download_button(
-            "⬇️ Download Excel report",
+            "Download Excel report",
             output.getvalue(),
             "drss_report.xlsx",
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1110,7 +1236,7 @@ def module_10():
 
 
 # ============================================================
-# MODULE 11 — SYSTEM SETTINGS
+# MODULE 11 - SYSTEM SETTINGS
 # ============================================================
 
 def module_11():
@@ -1119,11 +1245,11 @@ def module_11():
         module_4_login()
         return
 
-    st.title("⚙️ Module 11 — System Settings")
+    st.title("Module 11 - System Settings")
 
     st.subheader("Application information")
     st.write(f"Application: **{APP_NAME}**")
-    st.write("Version: **1.0 — Modules 1–12 single-file architecture**")
+    st.write("Version: **1.0 - Modules 1–12 single-file architecture**")
     st.write("Backend: **Firebase Firestore**")
 
     st.subheader("Administrator")
@@ -1147,7 +1273,7 @@ def module_11():
 
 
 # ============================================================
-# MODULE 12 — AUDIT LOG
+# MODULE 12 - AUDIT LOG
 # ============================================================
 
 def module_12():
@@ -1156,7 +1282,7 @@ def module_12():
         module_4_login()
         return
 
-    st.title("📜 Module 12 — Audit Log")
+    st.title("Module 12 - Audit Log")
 
     db = get_db()
     docs = list(
@@ -1192,7 +1318,7 @@ def admin_dashboard():
         module_4_login()
         return
 
-    st.title("🛡️ DRSS Administrator Dashboard")
+    st.title("DRSS Administrator Dashboard")
     st.caption(
         f"Signed in as {st.session_state.get('admin_email','')}"
     )
@@ -1233,14 +1359,15 @@ def admin_dashboard():
 # ============================================================
 
 def main():
-    st.sidebar.title("🎟️ DRSS")
+    st.sidebar.title("DRSS")
+    st.sidebar.caption("Digital Registration and Selection System")
 
     public_pages = [
         "🏠 Home",
-        "📝 Register",
-        "🔎 Check Status",
-        "🏆 Winners",
-        "🔐 Administrator",
+        "Register",
+        "Check Status",
+        "Winners",
+        "Administrator",
     ]
 
     page = st.sidebar.radio("Main Menu", public_pages)
@@ -1252,13 +1379,13 @@ def main():
 
     if page == "🏠 Home":
         module_1()
-    elif page == "📝 Register":
+    elif page == "Register":
         module_2()
-    elif page == "🔎 Check Status":
+    elif page == "Check Status":
         module_3()
-    elif page == "🏆 Winners":
+    elif page == "Winners":
         module_9()
-    elif page == "🔐 Administrator":
+    elif page == "Administrator":
         admin_dashboard()
 
 
