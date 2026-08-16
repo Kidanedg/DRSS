@@ -1,4 +1,3 @@
-
 import streamlit as st
 import json
 import uuid
@@ -8,40 +7,55 @@ from datetime import datetime, date
 
 st.set_page_config(
     page_title="DRSS | Digital Registration and Selection System",
+    page_icon=None,
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-VERSION = "2.0"
-DEFAULT_PROJECT = "drs-system-bffd7"
+VERSION = "2.1"
 
-st.markdown("""
-<style>
-.block-container{max-width:1280px;padding-top:1.2rem}
-.hero{padding:2.4rem;border:1px solid #d7e2ed;border-radius:22px;background:linear-gradient(135deg,#f7f9fc,#edf5fb);margin-bottom:1.5rem}
-.hero h1{margin:0;color:#243447;font-size:2.4rem}
-.hero p{color:#52606d;font-size:1.05rem;line-height:1.6}
-.card{padding:1.25rem;border:1px solid #d9e2ec;border-radius:15px;background:white;min-height:130px}
-.card h3{color:#243447}
-.card p{color:#52606d}
-footer{visibility:hidden}
-</style>
-""", unsafe_allow_html=True)
+st.markdown(
+    """
+    <style>
+    .block-container {max-width: 1280px; padding-top: 1.2rem;}
+    .hero {
+        padding: 2.2rem;
+        border: 1px solid #d7e2ed;
+        border-radius: 20px;
+        background: linear-gradient(135deg,#f7f9fc,#edf5fb);
+        margin-bottom: 1.5rem;
+    }
+    .hero h1 {margin: 0; color: #243447; font-size: 2.35rem;}
+    .hero p {color: #52606d; font-size: 1.05rem; line-height: 1.6;}
+    .card {
+        padding: 1.15rem;
+        border: 1px solid #d9e2ec;
+        border-radius: 14px;
+        background: white;
+        min-height: 120px;
+    }
+    .card h3 {color: #243447;}
+    .card p {color: #52606d;}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 
 # ============================================================
-# Firebase: one Streamlit Secret
+# Firebase connection
 # ============================================================
 
-def secret_json():
+def get_secret_json():
     try:
-        return str(st.secrets.get("FIREBASE_SERVICE_ACCOUNT_JSON", "")).strip()
+        value = st.secrets.get("FIREBASE_SERVICE_ACCOUNT_JSON", "")
+        return str(value).strip()
     except Exception:
         return ""
 
 
 def load_firebase_config():
-    raw = secret_json()
+    raw = get_secret_json()
 
     if not raw:
         return {}, ["FIREBASE_SERVICE_ACCOUNT_JSON is missing."]
@@ -55,10 +69,13 @@ def load_firebase_config():
         ]
 
     if not isinstance(config, dict):
-        return {}, ["The Firebase secret must be a JSON object."]
+        return {}, ["The Firebase secret must contain a JSON object."]
 
     required = ["project_id", "private_key", "client_email"]
-    missing = [x for x in required if not str(config.get(x, "")).strip()]
+    missing = [
+        field for field in required
+        if not str(config.get(field, "")).strip()
+    ]
 
     if missing:
         return config, [
@@ -66,12 +83,14 @@ def load_firebase_config():
         ]
 
     key = str(config["private_key"])
-    key = key.replace("\\r\\n", "\n").replace("\\n", "\n")
-    key = key.replace("\r\n", "\n").replace("\r", "\n")
+    key = key.replace("\\r\\n", "\n")
+    key = key.replace("\\n", "\n")
+    key = key.replace("\r\n", "\n")
+    key = key.replace("\r", "\n")
     config["private_key"] = key
 
-    if "-----BEGIN PRIVATE KEY-----" not in key:
-        return config, ["Firebase private_key is not a valid PEM key."]
+    if "BEGIN PRIVATE KEY" not in key:
+        return config, ["The private_key does not appear to be a PEM private key."]
 
     return config, []
 
@@ -90,9 +109,8 @@ def connect_firebase():
         try:
             firebase_admin.get_app()
         except ValueError:
-            firebase_admin.initialize_app(
-                credentials.Certificate(config)
-            )
+            credential = credentials.Certificate(config)
+            firebase_admin.initialize_app(credential)
 
         return firestore.client(), config, []
 
@@ -111,7 +129,9 @@ db, firebase_config, firebase_errors = connect_firebase()
 # ============================================================
 
 def collection(name):
-    return None if db is None else db.collection(name)
+    if db is None:
+        return None
+    return db.collection(name)
 
 
 def set_doc(name, doc_id, data, merge=True):
@@ -126,8 +146,8 @@ def add_doc(name, data):
     ref = collection(name)
     if ref is None:
         return None
-    _, doc = ref.add(data)
-    return doc.id
+    _, document = ref.add(data)
+    return document.id
 
 
 def list_docs(name, limit=1000):
@@ -136,11 +156,19 @@ def list_docs(name, limit=1000):
         return []
 
     rows = []
-    for doc in ref.limit(limit).stream():
-        item = doc.to_dict()
-        item["_id"] = doc.id
+    for document in ref.limit(limit).stream():
+        item = document.to_dict()
+        item["_id"] = document.id
         rows.append(item)
     return rows
+
+
+def now():
+    return datetime.utcnow().isoformat() + "Z"
+
+
+def new_id(prefix):
+    return prefix + "-" + uuid.uuid4().hex[:10].upper()
 
 
 def audit(action, details=None):
@@ -150,19 +178,11 @@ def audit(action, details=None):
             {
                 "action": action,
                 "details": details or {},
-                "created_at": datetime.utcnow().isoformat(),
+                "created_at": now(),
             },
         )
     except Exception:
         pass
-
-
-def new_id(prefix):
-    return prefix + "-" + uuid.uuid4().hex[:10].upper()
-
-
-def now():
-    return datetime.utcnow().isoformat()
 
 
 # ============================================================
@@ -170,45 +190,49 @@ def now():
 # ============================================================
 
 def home():
-    st.markdown("""
-    <div class="hero">
-        <h1>Digital Registration and Selection System</h1>
-        <p>
-        A simple, transparent and auditable platform for registration,
-        eligibility management, random selection, results and reporting.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div class="hero">
+            <h1>Digital Registration and Selection System</h1>
+            <p>
+            A simple, transparent and auditable platform for participant
+            registration, eligibility review, random selection, results
+            management and reporting.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     if db:
         st.success("Firebase Firestore is connected and ready.")
     else:
         st.error(
-            "Firebase Admin is not connected. Configure the single "
+            "Firebase Admin is not connected. Configure the "
             "FIREBASE_SERVICE_ACCOUNT_JSON Streamlit Secret."
         )
 
     st.subheader("System overview")
 
     cards = [
-        ("Registration", "Register participants using a simple form."),
+        ("Registration", "Register participants through a simple form."),
         ("Eligibility", "Review and approve participants before selection."),
-        ("Random selection", "Select eligible participants without replacement."),
+        ("Selection", "Select eligible participants randomly without replacement."),
         ("Results", "Review selected participants and maintain records."),
     ]
 
-    cols = st.columns(4)
-    for col, (title, description) in zip(cols, cards):
-        with col:
+    columns = st.columns(4)
+    for column, item in zip(columns, cards):
+        with column:
             st.markdown(
-                f'<div class="card"><h3>{title}</h3><p>{description}</p></div>',
+                f'<div class="card"><h3>{item[0]}</h3><p>{item[1]}</p></div>',
                 unsafe_allow_html=True,
             )
 
-    st.subheader("Workflow")
+    st.subheader("Standard workflow")
     st.write(
-        "Event creation → registration → verification → eligibility → "
-        "random selection → results → notifications → audit."
+        "Event creation -> registration -> verification -> eligibility -> "
+        "random selection -> results -> reporting -> audit."
     )
 
 
@@ -219,13 +243,13 @@ def home():
 def module1():
     st.header("Module 1: System Home")
     st.write(
-        "DRSS organizes the complete registration and selection process "
-        "in a sequence that can be followed by a non-technical user."
+        "This module introduces the DRSS workflow and provides a starting "
+        "point for administrators and ordinary users."
     )
 
     st.subheader("Core principles")
 
-    for item in [
+    principles = [
         "Simple user interface",
         "Clear eligibility rules",
         "Controlled administration",
@@ -233,7 +257,9 @@ def module1():
         "Persistent Firestore records",
         "Audit records for important actions",
         "Transparent result reporting",
-    ]:
+    ]
+
+    for item in principles:
         st.write(item)
 
 
@@ -255,37 +281,42 @@ def module2():
         )
         submitted = st.form_submit_button("Register participant")
 
-    if submitted:
-        if not name or not phone or not event_id:
-            st.error("Full name, phone number and Event ID are required.")
-            return
+    if not submitted:
+        return
 
-        if not confirmed:
-            st.error("Please confirm the information.")
-            return
+    if not name or not phone or not event_id:
+        st.error("Full name, phone number and Event ID are required.")
+        return
 
-        participant_id = new_id("P")
+    if not confirmed:
+        st.error("Please confirm the information.")
+        return
 
-        record = {
-            "participant_id": participant_id,
-            "full_name": name,
-            "phone": phone,
-            "email": email,
-            "identification": identification,
-            "event_id": event_id,
-            "status": "registered",
-            "eligible": False,
-            "created_at": now(),
-        }
+    participant_id = new_id("P")
 
-        if db:
-            set_doc("participants", participant_id, record, False)
-            audit("participant_registered", {"participant_id": participant_id})
-            st.success(
-                f"Registration completed. Participant ID: {participant_id}"
-            )
-        else:
-            st.warning("Firebase is required to save the registration.")
+    record = {
+        "participant_id": participant_id,
+        "full_name": name,
+        "phone": phone,
+        "email": email,
+        "identification": identification,
+        "event_id": event_id,
+        "status": "registered",
+        "eligible": False,
+        "created_at": now(),
+    }
+
+    if db:
+        set_doc("participants", participant_id, record, False)
+        audit(
+            "participant_registered",
+            {"participant_id": participant_id},
+        )
+        st.success(
+            f"Registration completed. Participant ID: {participant_id}"
+        )
+    else:
+        st.warning("Firebase is required to save the registration.")
 
 
 # ============================================================
@@ -305,31 +336,49 @@ def module3():
         st.info("No participants have been registered.")
         return
 
-    for p in participants:
-        pid = p.get("participant_id", p["_id"])
+    for participant in participants:
+        participant_id = participant.get(
+            "participant_id",
+            participant["_id"],
+        )
 
-        with st.expander(f"{pid} | {p.get('full_name', '')}"):
-            st.write(f"Event ID: {p.get('event_id', '')}")
-            eligible = st.checkbox(
-                "Eligible for selection",
-                value=bool(p.get("eligible")),
-                key="elig_" + pid,
+        with st.expander(
+            f"{participant_id} | {participant.get('full_name', '')}"
+        ):
+            st.write(
+                f"Event ID: {participant.get('event_id', '')}"
             )
 
-            if st.button("Save eligibility", key="save_" + pid):
+            eligible = st.checkbox(
+                "Eligible for selection",
+                value=bool(participant.get("eligible")),
+                key="eligibility_" + participant_id,
+            )
+
+            if st.button(
+                "Save eligibility",
+                key="save_eligibility_" + participant_id,
+            ):
                 set_doc(
                     "participants",
-                    p["_id"],
+                    participant["_id"],
                     {
                         "eligible": eligible,
-                        "status": "eligible" if eligible else "ineligible",
+                        "status": (
+                            "eligible" if eligible else "ineligible"
+                        ),
                         "reviewed_at": now(),
                     },
                 )
+
                 audit(
                     "eligibility_updated",
-                    {"participant_id": pid, "eligible": eligible},
+                    {
+                        "participant_id": participant_id,
+                        "eligible": eligible,
+                    },
                 )
+
                 st.success("Eligibility status saved.")
 
 
@@ -343,45 +392,59 @@ def module4():
     with st.form("event_form"):
         name = st.text_input("Event name")
         description = st.text_area("Event description")
-        start = st.date_input("Registration start date", date.today())
-        end = st.date_input("Registration end date", date.today())
-        winners = st.number_input(
-            "Number of winners", min_value=1, max_value=10000, value=1
+        start_date = st.date_input(
+            "Registration start date",
+            date.today(),
         )
+        end_date = st.date_input(
+            "Registration end date",
+            date.today(),
+        )
+        winners = st.number_input(
+            "Number of winners",
+            min_value=1,
+            max_value=10000,
+            value=1,
+        )
+
         submitted = st.form_submit_button("Create event")
 
     if submitted:
         if not name:
             st.error("Event name is required.")
-            return
-        if end < start:
+        elif end_date < start_date:
             st.error("End date cannot be earlier than start date.")
-            return
-
-        event_id = new_id("EV")
-
-        record = {
-            "event_id": event_id,
-            "event_name": name,
-            "description": description,
-            "start_date": str(start),
-            "end_date": str(end),
-            "winners_count": int(winners),
-            "status": "open",
-            "created_at": now(),
-        }
-
-        if db:
-            set_doc("events", event_id, record, False)
-            audit("event_created", {"event_id": event_id})
-            st.success(f"Event created: {event_id}")
-        else:
+        elif not db:
             st.warning("Firebase is required.")
+        else:
+            event_id = new_id("EV")
+
+            record = {
+                "event_id": event_id,
+                "event_name": name,
+                "description": description,
+                "start_date": str(start_date),
+                "end_date": str(end_date),
+                "winners_count": int(winners),
+                "status": "open",
+                "created_at": now(),
+            }
+
+            set_doc("events", event_id, record, False)
+            audit(
+                "event_created",
+                {"event_id": event_id},
+            )
+            st.success(f"Event created: {event_id}")
 
     if db:
         events = list_docs("events")
         if events:
-            st.dataframe(events, use_container_width=True, hide_index=True)
+            st.dataframe(
+                events,
+                use_container_width=True,
+                hide_index=True,
+            )
         else:
             st.info("No events have been created.")
 
@@ -401,34 +464,46 @@ def module5():
     with st.form("payment_form"):
         participant_id = st.text_input("Participant ID")
         reference = st.text_input("Payment reference")
-        amount = st.number_input("Amount", min_value=0.0, value=0.0)
+        amount = st.number_input(
+            "Amount",
+            min_value=0.0,
+            value=0.0,
+        )
         submitted = st.form_submit_button("Record payment")
 
-    if submitted:
-        if not participant_id or not reference:
-            st.error("Participant ID and payment reference are required.")
-            return
+    if not submitted:
+        return
 
-        payment_id = new_id("PAY")
+    if not participant_id or not reference:
+        st.error("Participant ID and payment reference are required.")
+        return
 
-        if db:
-            set_doc(
-                "payments",
-                payment_id,
-                {
-                    "payment_id": payment_id,
-                    "participant_id": participant_id,
-                    "reference": reference,
-                    "amount": float(amount),
-                    "status": "pending_verification",
-                    "created_at": now(),
-                },
-                False,
-            )
-            audit("payment_recorded", {"payment_id": payment_id})
-            st.success(f"Payment record created: {payment_id}")
-        else:
-            st.warning("Firebase is required.")
+    if not db:
+        st.warning("Firebase is required.")
+        return
+
+    payment_id = new_id("PAY")
+
+    set_doc(
+        "payments",
+        payment_id,
+        {
+            "payment_id": payment_id,
+            "participant_id": participant_id,
+            "reference": reference,
+            "amount": float(amount),
+            "status": "pending_verification",
+            "created_at": now(),
+        },
+        False,
+    )
+
+    audit(
+        "payment_recorded",
+        {"payment_id": payment_id},
+    )
+
+    st.success(f"Payment record created: {payment_id}")
 
 
 # ============================================================
@@ -460,33 +535,35 @@ def module6():
         notes = st.text_area("Verification notes")
         submitted = st.form_submit_button("Save verification")
 
-    if submitted:
-        if not participant_id:
-            st.error("Participant ID is required.")
-            return
+    if not submitted:
+        return
 
-        verification_id = new_id("VER")
+    if not participant_id:
+        st.error("Participant ID is required.")
+        return
 
-        set_doc(
-            "verifications",
-            verification_id,
-            {
-                "verification_id": verification_id,
-                "participant_id": participant_id,
-                "document_type": document_type,
-                "status": status,
-                "notes": notes,
-                "created_at": now(),
-            },
-            False,
-        )
+    verification_id = new_id("VER")
 
-        audit(
-            "document_verification_saved",
-            {"verification_id": verification_id},
-        )
+    set_doc(
+        "verifications",
+        verification_id,
+        {
+            "verification_id": verification_id,
+            "participant_id": participant_id,
+            "document_type": document_type,
+            "status": status,
+            "notes": notes,
+            "created_at": now(),
+        },
+        False,
+    )
 
-        st.success("Verification record saved.")
+    audit(
+        "document_verification_saved",
+        {"verification_id": verification_id},
+    )
+
+    st.success("Verification record saved.")
 
 
 # ============================================================
@@ -497,14 +574,14 @@ def module7():
     st.header("Module 7: Random Selection")
 
     st.write(
-        "Select eligible participants using a simple random sample "
-        "without replacement."
+        "This module selects eligible participants using simple random "
+        "sampling without replacement."
     )
 
     st.info(
-        "For a legally regulated public lottery, use formally approved "
-        "rules, independent oversight, security controls and an appropriate "
-        "randomness verification protocol."
+        "For a regulated public lottery, formally define the legal rules, "
+        "security controls, independent oversight and randomness "
+        "verification requirements before production use."
     )
 
     if not db:
@@ -518,39 +595,58 @@ def module7():
         return
 
     labels = [
-        f"{e.get('event_id')} | {e.get('event_name')}"
-        for e in events
+        f"{event.get('event_id')} | {event.get('event_name')}"
+        for event in events
     ]
 
-    selected_label = st.selectbox("Select event", labels)
+    selected_label = st.selectbox(
+        "Select event",
+        labels,
+    )
+
     event = events[labels.index(selected_label)]
 
     participants = list_docs("participants")
 
     eligible = [
-        p for p in participants
-        if p.get("event_id") == event.get("event_id")
-        and bool(p.get("eligible"))
+        participant
+        for participant in participants
+        if participant.get("event_id") == event.get("event_id")
+        and bool(participant.get("eligible"))
     ]
 
     population = len(eligible)
     requested = int(event.get("winners_count", 1))
     winner_count = min(requested, population)
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Eligible population", population)
-    c2.metric("Requested winners", requested)
-    c3.metric("Winners possible", winner_count)
+    columns = st.columns(3)
+    columns[0].metric(
+        "Eligible population",
+        population,
+    )
+    columns[1].metric(
+        "Requested winners",
+        requested,
+    )
+    columns[2].metric(
+        "Winners possible",
+        winner_count,
+    )
 
     if population == 0:
-        st.warning("There are no eligible participants for this event.")
+        st.warning(
+            "There are no eligible participants for this event."
+        )
         return
 
     confirmed = st.checkbox(
         "I have reviewed the eligible population and event rules."
     )
 
-    if st.button("Run random selection", disabled=not confirmed):
+    if st.button(
+        "Run random selection",
+        disabled=not confirmed,
+    ):
         selected = random.SystemRandom().sample(
             eligible,
             winner_count,
@@ -566,17 +662,23 @@ def module7():
                 "selection_id": selection_id,
                 "event_id": event.get("event_id"),
                 "selected_at": selection_time,
-                "method": "simple_random_sample_without_replacement",
+                "method": (
+                    "simple_random_sample_without_replacement"
+                ),
                 "population_size": population,
                 "winner_count": winner_count,
                 "winner_ids": [
-                    p.get("participant_id") for p in selected
+                    participant.get("participant_id")
+                    for participant in selected
                 ],
             },
             False,
         )
 
-        for rank, participant in enumerate(selected, start=1):
+        for rank, participant in enumerate(
+            selected,
+            start=1,
+        ):
             winner_id = new_id("WIN")
 
             set_doc(
@@ -586,8 +688,12 @@ def module7():
                     "winner_id": winner_id,
                     "selection_id": selection_id,
                     "event_id": event.get("event_id"),
-                    "participant_id": participant.get("participant_id"),
-                    "full_name": participant.get("full_name"),
+                    "participant_id": participant.get(
+                        "participant_id"
+                    ),
+                    "full_name": participant.get(
+                        "full_name"
+                    ),
                     "rank": rank,
                     "selected_at": selection_time,
                 },
@@ -604,11 +710,19 @@ def module7():
             },
         )
 
-        st.success(f"Selection completed. Selection ID: {selection_id}")
+        st.success(
+            f"Selection completed. Selection ID: {selection_id}"
+        )
 
-        for rank, participant in enumerate(selected, start=1):
+        st.subheader("Selected participants")
+
+        for rank, participant in enumerate(
+            selected,
+            start=1,
+        ):
             st.write(
-                f"{rank}. {participant.get('participant_id')} - "
+                f"{rank}. "
+                f"{participant.get('participant_id')} - "
                 f"{participant.get('full_name')}"
             )
 
@@ -627,7 +741,11 @@ def module8():
     winners = list_docs("winners")
 
     if winners:
-        st.dataframe(winners, use_container_width=True, hide_index=True)
+        st.dataframe(
+            winners,
+            use_container_width=True,
+            hide_index=True,
+        )
     else:
         st.info("No results are available.")
 
@@ -645,37 +763,48 @@ def module9():
 
     with st.form("notification_form"):
         participant_id = st.text_input("Participant ID")
-        channel = st.selectbox("Channel", ["SMS", "Email"])
+        channel = st.selectbox(
+            "Channel",
+            ["SMS", "Email"],
+        )
         message = st.text_area("Message")
-        submitted = st.form_submit_button("Queue notification")
-
-    if submitted:
-        if not participant_id or not message:
-            st.error("Participant ID and message are required.")
-            return
-
-        notification_id = new_id("NOT")
-
-        set_doc(
-            "notifications",
-            notification_id,
-            {
-                "notification_id": notification_id,
-                "participant_id": participant_id,
-                "channel": channel,
-                "message": message,
-                "status": "queued",
-                "created_at": now(),
-            },
-            False,
+        submitted = st.form_submit_button(
+            "Queue notification"
         )
 
-        audit(
-            "notification_created",
-            {"notification_id": notification_id},
-        )
+    if not submitted:
+        return
 
-        st.success(f"Notification queued: {notification_id}")
+    if not participant_id or not message:
+        st.error(
+            "Participant ID and message are required."
+        )
+        return
+
+    notification_id = new_id("NOT")
+
+    set_doc(
+        "notifications",
+        notification_id,
+        {
+            "notification_id": notification_id,
+            "participant_id": participant_id,
+            "channel": channel,
+            "message": message,
+            "status": "queued",
+            "created_at": now(),
+        },
+        False,
+    )
+
+    audit(
+        "notification_created",
+        {"notification_id": notification_id},
+    )
+
+    st.success(
+        f"Notification queued: {notification_id}"
+    )
 
 
 # ============================================================
@@ -689,16 +818,41 @@ def module10():
         st.warning("Firebase is required.")
         return
 
-    participants = list_docs("participants", 2000)
-    events = list_docs("events", 1000)
-    winners = list_docs("winners", 2000)
-    payments = list_docs("payments", 2000)
+    participants = list_docs(
+        "participants",
+        2000,
+    )
+    events = list_docs(
+        "events",
+        1000,
+    )
+    winners = list_docs(
+        "winners",
+        2000,
+    )
+    payments = list_docs(
+        "payments",
+        2000,
+    )
 
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Participants", len(participants))
-    c2.metric("Events", len(events))
-    c3.metric("Winners", len(winners))
-    c4.metric("Payment records", len(payments))
+    columns = st.columns(4)
+
+    columns[0].metric(
+        "Participants",
+        len(participants),
+    )
+    columns[1].metric(
+        "Events",
+        len(events),
+    )
+    columns[2].metric(
+        "Winners",
+        len(winners),
+    )
+    columns[3].metric(
+        "Payment records",
+        len(payments),
+    )
 
     if participants:
         st.subheader("Participants")
@@ -728,10 +882,17 @@ def module11():
         st.warning("Firebase is required.")
         return
 
-    logs = list_docs("audit_logs", 2000)
+    logs = list_docs(
+        "audit_logs",
+        2000,
+    )
 
     if logs:
-        st.dataframe(logs, use_container_width=True, hide_index=True)
+        st.dataframe(
+            logs,
+            use_container_width=True,
+            hide_index=True,
+        )
     else:
         st.info("No audit records are available.")
 
@@ -744,30 +905,55 @@ def module12():
     st.header("Module 12: Administration and System Health")
 
     if db:
-        st.success("Firebase Admin SDK and Firestore are connected.")
+        st.success(
+            "Firebase Admin SDK and Firestore are connected."
+        )
 
         st.write(
             "Project ID:",
-            firebase_config.get("project_id", ""),
+            firebase_config.get(
+                "project_id",
+                "",
+            ),
         )
 
-        email = firebase_config.get("client_email", "")
+        email = firebase_config.get(
+            "client_email",
+            "",
+        )
+
         if "@" in email:
-            local, domain = email.split("@", 1)
-            masked = local[:2] + "*" * max(1, len(local) - 2) + "@" + domain
+            local, domain = email.split(
+                "@",
+                1,
+            )
+            masked = (
+                local[:2]
+                + "*" * max(1, len(local) - 2)
+                + "@"
+                + domain
+            )
         else:
             masked = "Configured"
 
-        st.write("Service account:", masked)
+        st.write(
+            "Service account:",
+            masked,
+        )
 
         fingerprint = hashlib.sha256(
             email.encode()
         ).hexdigest()[:12].upper()
 
-        st.write("Credential fingerprint:", fingerprint)
+        st.write(
+            "Credential fingerprint:",
+            fingerprint,
+        )
 
     else:
-        st.error("Firebase Admin SDK is not connected.")
+        st.error(
+            "Firebase Admin SDK is not connected."
+        )
 
         for error in firebase_errors:
             st.code(error)
@@ -776,20 +962,38 @@ def module12():
 
     diagnostics = [
         {
-            "configuration": "FIREBASE_SERVICE_ACCOUNT_JSON",
-            "status": "Detected" if secret_json() else "Missing",
+            "configuration": (
+                "FIREBASE_SERVICE_ACCOUNT_JSON"
+            ),
+            "status": (
+                "Detected"
+                if get_secret_json()
+                else "Missing"
+            ),
         },
         {
             "configuration": "project_id",
-            "status": "Detected" if firebase_config.get("project_id") else "Missing",
+            "status": (
+                "Detected"
+                if firebase_config.get("project_id")
+                else "Missing"
+            ),
         },
         {
             "configuration": "private_key",
-            "status": "Detected" if firebase_config.get("private_key") else "Missing",
+            "status": (
+                "Detected"
+                if firebase_config.get("private_key")
+                else "Missing"
+            ),
         },
         {
             "configuration": "client_email",
-            "status": "Detected" if firebase_config.get("client_email") else "Missing",
+            "status": (
+                "Detected"
+                if firebase_config.get("client_email")
+                else "Missing"
+            ),
         },
     ]
 
@@ -800,11 +1004,87 @@ def module12():
     )
 
     st.info(
-        "The private key is never displayed. Keep the Firebase service-account "
-        "JSON out of GitHub and do not put the private key into app.py."
+        "The private key is never displayed. Keep the Firebase "
+        "service-account JSON out of GitHub and do not put the "
+        "private key directly into app.py."
     )
 
-    st.subheader("Required Secret structure")
+    st.subheader(
+        "Required Streamlit Secret"
+    )
+
+    secret_lines = [
+        'FIREBASE_SERVICE_ACCOUNT_JSON = \'\'\'',
+        '{',
+        '  "type": "service_account",',
+        '  "project_id": "drs-system-bffd7",',
+        '  "private_key_id": "YOUR_REAL_VALUE",',
+        '  "private_key": "-----BEGIN PRIVATE KEY-----\\\\nYOUR_REAL_KEY\\\\n-----END PRIVATE KEY-----\\\\n",',
+        '  "client_email": "YOUR_REAL_SERVICE_ACCOUNT_EMAIL",',
+        '  "client_id": "YOUR_REAL_VALUE",',
+        '  "auth_uri": "https://accounts.google.com/o/oauth2/auth",',
+        '  "token_uri": "https://oauth2.googleapis.com/token"',
+        '}',
+        '\'\'\'',
+    ]
 
     st.code(
-        """FIREBASE_SERVICE_ACCOUNT_JSON = 
+        "\n".join(secret_lines),
+        language="toml",
+    )
+
+
+# ============================================================
+# Navigation
+# ============================================================
+
+PAGES = {
+    "Home": home,
+    "Module 1: System Home": module1,
+    "Module 2: Registration": module2,
+    "Module 3: Eligibility": module3,
+    "Module 4: Event Management": module4,
+    "Module 5: Payment": module5,
+    "Module 6: Document Verification": module6,
+    "Module 7: Random Selection": module7,
+    "Module 8: Results": module8,
+    "Module 9: Notifications": module9,
+    "Module 10: Reports": module10,
+    "Module 11: Audit Trail": module11,
+    "Module 12: Administration": module12,
+}
+
+
+with st.sidebar:
+    st.markdown("## DRSS")
+    st.caption(
+        "Digital Registration and Selection System"
+    )
+
+    page = st.radio(
+        "Navigation",
+        list(PAGES.keys()),
+    )
+
+    st.divider()
+
+    st.caption("Application")
+    st.write(f"Version {VERSION}")
+
+    st.caption("Firebase project")
+    st.write(
+        firebase_config.get(
+            "project_id",
+            "Not configured",
+        )
+    )
+
+    st.caption("Database status")
+    st.write(
+        "Connected"
+        if db
+        else "Not connected"
+    )
+
+
+PAGES[page]()
